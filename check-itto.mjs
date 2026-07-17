@@ -65,6 +65,20 @@ const events = [...text.matchAll(/event_type:\s*(\S+)/g)].map((m) => m[1]);
 console.log(`${ok(events.length > 0)} triggers (${events.length}): ${events.join(", ")}`);
 if (!events.length) fail++;
 
+// ── Mảnh ③ — Base Mẫu phải là LINK THẬT ──────────────────────────────────────
+// Vì sao có luật này: 5/5 gói từng nằm im với template_url là placeholder "<...>".
+// Học viên tắc ngay ở hành động ĐẦU TIÊN (bấm Duplicate) mà không gì báo động.
+// Từ nay: gói chưa có Base Mẫu thật thì TỰ NÓ khai là chưa chuẩn — không cần ai nhớ.
+const tplM = text.match(/^\s*template_url:\s*"?([^"\n#]+?)"?\s*(?:#.*)?$/m);
+const tpl = tplM ? tplM[1].trim() : null;
+const tplReal = !!tpl && !/[<>]/.test(tpl) && /^https?:\/\/\S+\/base\/\S+/.test(tpl);
+console.log(`${ok(tplReal)} Base Mẫu (mảnh ③): ${tpl || "(chưa khai template_url)"}`);
+if (!tplReal) {
+  fail++;
+  console.log("     ↳ template_url còn placeholder/không hợp lệ ⇒ học viên KHÔNG có gì để bấm ở bước 1.");
+  console.log("     ↳ Sửa: dựng Base bằng lệnh ở input.base_mau.setup → bật share 'ai có link xem + tạo bản sao' → dán link thật vào đây.");
+}
+
 const paths = [...new Set([...text.matchAll(/(\.claude\/[^\s"']+\.mjs)/g)].map((m) => m[1]))];
 console.log(`\nKiểm script khai trong itto (${paths.length}):`);
 for (const rel of paths) {

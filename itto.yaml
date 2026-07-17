@@ -5,7 +5,7 @@
 # ============================================================================
 
 package: mentor-club-youtube
-version: 1.0.0
+version: 1.1.0                     # 1.1.0 — Base Mẫu THẬT (mảnh ③) đã dựng & mở quyền nhân bản
 skills:
   - hmh-AIOS-sync-youtube-lark     # kéo kênh (16.1) + video (16.2)
   - hmh-AIOS-dang-video-youtube    # đăng video (16.3 → YouTube, OAuth)
@@ -13,13 +13,16 @@ skills:
 # ── I — INPUT: chuẩn bị TRƯỚC khi chạy ──
 input:
   base_mau:
-    template_url: "https://<link-nhan-ban-Base-YouTube>"   # <đổi khi bàn giao>
-    setup:  node .claude/skills/hmh-AIOS-sync-youtube-lark/scripts/setup-tables.mjs   # 16.1 + 16.2
-    setup2: node .claude/skills/hmh-AIOS-dang-video-youtube/scripts/setup-table.mjs   # 16.3
+    # ★ Base Mẫu THẬT — quyền: ai có link XEM + TẠO BẢN SAO (không sửa được bản gốc).
+    #   Học viên: mở link → góc trên phải "..." → "Tạo bản sao / Make a copy".
+    #   Base này sinh 100% từ setup-tables.mjs — KHÔNG sửa cột bằng tay trên UI.
+    template_url: "https://studiosuccess.sg.larksuite.com/base/SXLqbcA64aNUU2spCVJlFeKTgsd"
+    setup:  node .claude/skills/hmh-AIOS-sync-youtube-lark/scripts/setup-tables.mjs   # 16.1 + 16.2 + 16.3
+    setup2: node .claude/skills/hmh-AIOS-dang-video-youtube/scripts/setup-table.mjs   # 16.3 (rieng)
     tables:
-      - "16.1 Kênh   → Variable TABLE_CHANNEL"
-      - "16.2 Video  → Variable TABLE_VIDEO"
-      - "16.3 Đăng video → Variable TABLE_POST"
+      - "16.1 Lấy dữ liệu kênh  → Variable TABLE_CHANNEL"
+      - "16.2 Lấy dữ liệu video → Variable TABLE_VIDEO"
+      - "16.3 Đăng video YouTube → Variable TABLE_POST"
   secrets:                         # GitHub Secrets
     - YOUTUBE_API_KEY              # sync (Data API v3 key)
     - LARK_APP_SECRET
