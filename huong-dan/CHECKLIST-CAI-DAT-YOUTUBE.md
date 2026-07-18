@@ -18,6 +18,8 @@
 | 8 | (tùy chọn) Webhook nhóm Lark | `https://.../hook/...` | Nhóm Lark → Settings → Bots → Custom Bot |
 
 > ⚠️ Điều kiện Lark: app (bot) phải được thêm làm **cộng tác viên "Có thể chỉnh sửa"** của Base, và bật scope `bitable:app` + `drive:drive` rồi **phát hành**.
+>
+> ⚠️ Nếu Base **đã bật Quyền nâng cao**: thêm cộng tác viên thôi **chưa đủ** — phải gán app vào một **Vai trò** đủ quyền. Xem [`QUYEN-NANG-CAO-LARK.md`](QUYEN-NANG-CAO-LARK.md).
 
 ---
 

@@ -95,4 +95,4 @@ Theo đúng thứ tự, dừng ở chỗ sai đầu tiên:
 
 4. **Đồng bộ ra kênh rỗng (0 sub)** → `YT_CHANNEL` gõ sai handle. Copy y nguyên `@...` từ thanh địa chỉ của kênh.
 
-5. **Video đăng lên thiếu file** → Base bật **quyền nâng cao**: thêm app Lark vào nhóm quyền **Chỉnh sửa**.
+5. **Sync ra rỗng / đăng báo "không thấy record" / video thiếu file** → Base đang bật **quyền nâng cao** mà bot chưa nằm trong Vai trò nào. Gán app Lark vào một **Vai trò** đủ quyền bảng/bản ghi/cột (chỉ thêm cộng tác viên "Chỉnh sửa" là **chưa đủ**) — xem [huong-dan/QUYEN-NANG-CAO-LARK.md](huong-dan/QUYEN-NANG-CAO-LARK.md).

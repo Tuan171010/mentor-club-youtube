@@ -45,6 +45,7 @@ Chạy lại bao nhiêu lần cũng được — **không tạo bảng trùng, k
 | Triển khai cho mình / cho khách (dưới 20 phút) | **[TRIEN-KHAI.md](TRIEN-KHAI.md)** |
 | Xem chi tiết từng action + tham số | [ACTIONS.md](ACTIONS.md) |
 | Cấu hình nút bấm & tự động hoá trong Lark Base | [LARK-AUTOMATION.md](LARK-AUTOMATION.md) |
+| Base bật "Quyền nâng cao" mà bot bị chặn (sync rỗng / thiếu file) | [huong-dan/QUYEN-NANG-CAO-LARK.md](huong-dan/QUYEN-NANG-CAO-LARK.md) |
 | Làm hàng loạt cho nhiều học viên (1 lệnh/người) | [trien-khai/README.md](trien-khai/README.md) |
 
 Tài liệu cũ chi tiết hơn nằm ở [huong-dan/](huong-dan/).

@@ -23,6 +23,8 @@
 2. Tab **Permissions & Scopes** → thêm: `bitable:app`, `drive:drive`, `base:record:retrieve`, `base:table:create` → **Create version → Submit for release**.
 3. **Quan trọng:** mở Lark Base → **⋯ → thêm app vừa tạo làm cộng tác viên quyền Chỉnh sửa**. Thiếu bước này thì app đọc được nhưng **không ghi được**.
 
+   > Nếu Base **đã bật Quyền nâng cao** thì thêm cộng tác viên thôi **chưa đủ** — phải gán app vào một **Vai trò**. Xem [huong-dan/QUYEN-NANG-CAO-LARK.md](huong-dan/QUYEN-NANG-CAO-LARK.md).
+
 ### B. Lark Base ID (`LARK_BASE_ID`)
 
 ```
@@ -152,4 +154,4 @@ GITHUB_PAT=ghp_xxxxxxxx       # PAT classic, scope "repo"
 | `quotaExceeded` | Hết quota YouTube API trong ngày | Chờ hôm sau, hoặc xin tăng quota |
 | Đăng video lỗi `insufficientPermissions` | Refresh token thiếu scope `youtube.upload` | Chạy lại `get-oauth-token.mjs` |
 | Upload video được ~6 cái rồi dừng | Đụng trần quota (1.600 đơn vị/video) | Xin tăng quota với Google |
-| Video đăng lên nhưng **thiếu file** | Base bật **quyền nâng cao** | Thêm app Lark vào nhóm quyền **Chỉnh sửa** của Base |
+| Sync ra **rỗng**, đăng báo **không thấy record**, hoặc video **thiếu file** | Base bật **quyền nâng cao**, bot chưa ở Vai trò nào | Gán app Lark vào một **Vai trò** đủ quyền bảng/bản ghi/cột — xem [huong-dan/QUYEN-NANG-CAO-LARK.md](huong-dan/QUYEN-NANG-CAO-LARK.md) |
