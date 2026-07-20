@@ -34,6 +34,8 @@ const DRY = process.argv.includes("--dry-run");
 // record_id cụ thể (nút bấm Lark gửi qua client_payload) — CLI --record-id hoặc env RECORD_ID
 const RECORD_ID = (() => { const i = process.argv.indexOf("--record-id"); return i > -1 ? process.argv[i + 1] : (E.RECORD_ID || ""); })();
 const THUMB_ONLY = /^(1|true|yes)$/i.test(E.THUMB_ONLY || "");
+// YT_SYNTHETIC=1 -> tick "Yes" o muc "AI use" (noi dung do AI tao/chinh sua)
+const SYNTHETIC = /^(1|true|yes)$/i.test(E.YT_SYNTHETIC || "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- Lark ----------
@@ -196,6 +198,29 @@ async function uploadToYouTube(accessToken, filePath, fileSize, snippet, status)
 // ---------- MAIN ----------
 // Đặt ảnh bìa (thumbnail) cho video đã upload.
 // LƯU Ý: kênh phải ĐÃ XÁC MINH (số điện thoại) thì YouTube mới cho đặt thumbnail tuỳ chỉnh.
+async function setSyntheticFlag(accessToken, videoId, value) {
+  const g = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status&id=${videoId}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!g.ok) throw new Error(`videos.list ${g.status}: ${(await g.text()).slice(0, 200)}`);
+  const cur = (await g.json()).items?.[0]?.status;
+  if (!cur) throw new Error("khong tim thay video");
+  const status = {
+    privacyStatus: cur.privacyStatus,
+    selfDeclaredMadeForKids: cur.selfDeclaredMadeForKids ?? false,
+    containsSyntheticMedia: value,
+  };
+  if (cur.publishAt) status.publishAt = cur.publishAt;
+  if (cur.license) status.license = cur.license;
+  if (typeof cur.embeddable === "boolean") status.embeddable = cur.embeddable;
+  const r = await fetch("https://www.googleapis.com/youtube/v3/videos?part=status", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: videoId, status }),
+  });
+  if (!r.ok) throw new Error(`videos.update ${r.status}: ${(await r.text()).slice(0, 250)}`);
+  return true;
+}
+
 async function setThumbnail(accessToken, videoId, filePath) {
   const buf = fs.readFileSync(filePath);
   const ext = path.extname(filePath).toLowerCase();
@@ -276,6 +301,10 @@ async function main() {
         await downloadAttachment(thAtt, row.record_id, "Thumbnail", tmpTh);
         await setThumbnail(accessToken, videoId, tmpTh);
         console.log(`  [OK] da dat anh bia cho ${videoId}: ${thAtt.name}`);
+        if (SYNTHETIC) {
+          await setSyntheticFlag(accessToken, videoId, true);
+          console.log(`  [OK] da tick "AI use = Yes" cho ${videoId}`);
+        }
         await updateRow(row.record_id, { "Ghi chú lỗi": "" });
       } catch (e) {
         const note = `Thumbnail chua dat duoc: ${e.message}`.slice(0, 500);
@@ -305,6 +334,7 @@ async function main() {
       const privacy = (f["Chế độ"]?.text ?? f["Chế độ"] ?? (CFG.defaultPrivacy || "private")).toString();
       const snippet = { title, description: desc, tags, categoryId: CFG.defaultCategoryId || "22" };
       const status = { privacyStatus: privacy, selfDeclaredMadeForKids: false };
+      if (SYNTHETIC) status.containsSyntheticMedia = true;
       const schedMs = f["Lịch đăng"];
       if (schedMs) { status.privacyStatus = "private"; status.publishAt = new Date(schedMs).toISOString(); }
 
