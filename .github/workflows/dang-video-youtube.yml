@@ -1,10 +1,13 @@
-# Đăng video Lark Base -> YouTube. Đặt file này vào .github/workflows/ của repo.
-# Gọi qua HTTP: POST /repos/<user>/<repo>/dispatches
-#   body {"event_type":"dang-video-youtube","client_payload":{"record_id":"rec...","base_id":"...","table_post":"..."}}
-# record_id: đăng đúng 1 dòng (nút bấm Lark). Bỏ trống -> quét tất cả dòng "Chờ đăng".
+# Đăng video Lark Base -> YouTube.
+# 3 cách chạy:
+#   1) schedule (cron)  : tự quét mỗi 15 phút, CHỈ upload dòng "Chờ đăng" có "Lịch đăng" còn <= LEAD_HOURS.
+#   2) repository_dispatch: nút bấm Lark gửi record_id -> đăng ngay đúng 1 dòng.
+#   3) workflow_dispatch : chạy tay.
 name: dang-video-youtube
 
 on:
+  schedule:
+    - cron: "*/15 * * * *"
   repository_dispatch:
     types: [dang-video-youtube]
   workflow_dispatch:
@@ -33,6 +36,8 @@ jobs:
           YT_OAUTH_CLIENT_ID: ${{ vars.YT_OAUTH_CLIENT_ID }}
           YT_CATEGORY_ID: ${{ vars.YT_CATEGORY_ID }}
           YT_PRIVACY: ${{ vars.YT_PRIVACY }}
+          # ---- CANH GIỜ: chỉ bật khi chạy theo lịch (cron). Chạy tay/nút bấm vẫn đăng ngay ----
+          LEAD_HOURS: ${{ github.event_name == 'schedule' && (vars.LEAD_HOURS || '2.5') || '' }}
           # ---- Nút bấm Lark gửi kèm record_id ----
           RECORD_ID: ${{ github.event.client_payload.record_id || inputs.record_id }}
         run: node ".claude/skills/hmh-AIOS-dang-video-youtube/scripts/post-video-youtube.mjs"
