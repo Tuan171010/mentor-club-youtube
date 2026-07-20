@@ -7,7 +7,7 @@ name: dang-video-youtube
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7 * * * *"   # moi gio (phut thu 7) - lich thua GitHub chay on dinh hon */15
   repository_dispatch:
     types: [dang-video-youtube]
   workflow_dispatch:
