@@ -193,6 +193,22 @@ async function uploadToYouTube(accessToken, filePath, fileSize, snippet, status)
 }
 
 // ---------- MAIN ----------
+// Đặt ảnh bìa (thumbnail) cho video đã upload.
+// LƯU Ý: kênh phải ĐÃ XÁC MINH (số điện thoại) thì YouTube mới cho đặt thumbnail tuỳ chỉnh.
+async function setThumbnail(accessToken, videoId, filePath) {
+  const buf = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  if (buf.length > 2 * 1024 * 1024)
+    throw new Error(`ảnh ${(buf.length / 1e6).toFixed(2)}MB vượt giới hạn 2MB của YouTube`);
+  const r = await fetch(
+    `https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId=${videoId}&uploadType=media`,
+    { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": mime }, body: buf }
+  );
+  if (!r.ok) throw new Error(`thumbnails.set ${r.status}: ${(await r.text()).slice(0, 250)}`);
+  return true;
+}
+
 async function main() {
   // Bảng: KHÔNG bắt người triển khai đi copy table_id. Bỏ trống thì tự tìm theo TÊN ("16.3").
   // Vẫn cho ghi đè bằng TABLE_POST nếu ai đó cố tình đặt tên bảng khác.
@@ -271,9 +287,29 @@ async function main() {
       console.log("  ↑ đang upload lên YouTube...");
       const videoId = await uploadToYouTube(accessToken, tmp, size, snippet, status);
       const link = `https://youtu.be/${videoId}`;
+
+      // ---- Đẩy ảnh bìa từ cột "Thumbnail" của Lark ----
+      let thumbNote = "";
+      const thAtt = Array.isArray(f["Thumbnail"]) && f["Thumbnail"].length ? f["Thumbnail"][0] : null;
+      if (!thAtt) {
+        console.log('  ⏭  Cột "Thumbnail" trống -> bỏ qua ảnh bìa.');
+      } else {
+        const tmpTh = path.join(os.tmpdir(), `th-${row.record_id}-${thAtt.name}`.replace(/[^\w.\-]/g, "_"));
+        try {
+          await downloadAttachment(thAtt, row.record_id, "Thumbnail", tmpTh);
+          await setThumbnail(accessToken, videoId, tmpTh);
+          console.log(`  🖼  Đã đặt ảnh bìa: ${thAtt.name}`);
+        } catch (e) {
+          thumbNote = `Thumbnail chưa đặt được: ${e.message}`.slice(0, 500);
+          console.log(`  ⚠️  ${thumbNote}`);
+        } finally {
+          try { fs.existsSync(tmpTh) && fs.unlinkSync(tmpTh); } catch {}
+        }
+      }
+
       await updateRow(row.record_id, {
         "Trạng thái": "Đã đăng", "Video ID": videoId,
-        "Link video": { link, text: title }, "Ngày đăng": Date.now(), "Ghi chú lỗi": "",
+        "Link video": { link, text: title }, "Ngày đăng": Date.now(), "Ghi chú lỗi": thumbNote,
       });
       console.log(`  ✔ Đã đăng: ${link}`);
     } catch (e) {
