@@ -23,6 +23,7 @@ CFG.larkAppSecret     = E.LARK_APP_SECRET          || CFG.larkAppSecret;
 CFG.larkDomain        = E.LARK_DOMAIN              || CFG.larkDomain || "https://open.larksuite.com";
 CFG.appToken          = E.LARK_BASE_ID            || CFG.appToken;
 CFG.tablePost         = E.TABLE_POST              || CFG.tablePost;
+CFG.tableChannels     = E.TABLE_CHANNELS          || CFG.tableChannels;
 CFG.oauthClientId     = E.YT_OAUTH_CLIENT_ID      || CFG.oauthClientId;
 CFG.oauthClientSecret = E.YT_OAUTH_CLIENT_SECRET  || CFG.oauthClientSecret;
 CFG.oauthRefreshToken = E.YT_OAUTH_REFRESH_TOKEN  || CFG.oauthRefreshToken;
@@ -155,12 +156,12 @@ async function downloadAttachment(att, recordId, fieldName, destPath) {
 }
 
 // ---------- YouTube OAuth + upload ----------
-async function ytAccessToken() {
+async function ytAccessToken(refreshToken) {
   const r = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: CFG.oauthClientId, client_secret: CFG.oauthClientSecret,
-      refresh_token: CFG.oauthRefreshToken, grant_type: "refresh_token",
+      refresh_token: refreshToken || CFG.oauthRefreshToken, grant_type: "refresh_token",
     }),
   });
   const j = await r.json();
@@ -233,6 +234,66 @@ async function updateVideoSnippet(accessToken, videoId, snippet) {
   if (!r.ok) throw new Error(`videos.update(snippet) ${r.status}: ${(await r.text()).slice(0, 250)}`);
   return true;
 }
+
+// ================== DA KENH ==================
+const txt = (v) => (v == null ? "" : (typeof v === "object" ? (v.text ?? v[0]?.text ?? "") : v)).toString().trim();
+
+let _channels = null;
+async function loadChannels() {
+  if (_channels) return _channels;
+  _channels = new Map();
+  if (!CFG.tableChannels) return _channels;
+  const j = await larkApi("GET",
+    `/open-apis/bitable/v1/apps/${CFG.appToken}/tables/${CFG.tableChannels}/records?page_size=200`);
+  for (const it of j?.data?.items || []) {
+    const f = it.fields || {};
+    const code = txt(f["Ma kenh"] ?? f["Mã kênh"]);
+    if (!code) continue;
+    _channels.set(code, {
+      name: txt(f["Ten kenh"] ?? f["Tên kênh"]),
+      channelId: txt(f["Channel ID"]),
+      tokenLabel: txt(f["Nhan token"] ?? f["Nhãn token"]),
+      active: txt(f["Trang thai"] ?? f["Trạng thái"]) !== "Tạm dừng",
+    });
+  }
+  console.log(`So kenh khai bao trong bang Kenh: ${_channels.size}`);
+  return _channels;
+}
+
+async function getMyChannel(accessToken) {
+  const r = await fetch("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
+    { headers: { Authorization: `Bearer ${accessToken}` } });
+  const j = await r.json();
+  const c = j.items?.[0];
+  if (!c) throw new Error(`Khong doc duoc kenh cua token: ${JSON.stringify(j).slice(0, 200)}`);
+  return { id: c.id, title: c.snippet?.title, handle: c.snippet?.customUrl };
+}
+
+const _tokCache = new Map();
+// Lay access token DUNG KENH + CHOT AN TOAN: tu choi neu token khong thuoc kenh khai bao.
+async function tokenForChannel(code) {
+  const key = code || "__default__";
+  if (_tokCache.has(key)) return _tokCache.get(key);
+  let refresh = CFG.oauthRefreshToken, expectId = "", label = "(mac dinh)";
+  if (code) {
+    const ch = (await loadChannels()).get(code);
+    if (!ch) throw new Error(`Kenh "${code}" chua khai bao trong bang Kenh (TABLE_CHANNELS)`);
+    if (!ch.active) throw new Error(`Kenh "${code}" dang o trang thai Tam dung`);
+    if (!ch.tokenLabel) throw new Error(`Kenh "${code}" thieu "Nhan token" trong bang Kenh`);
+    const secrets = JSON.parse(E.ALL_SECRETS || "{}");
+    refresh = secrets[ch.tokenLabel];
+    label = ch.tokenLabel; expectId = ch.channelId;
+    if (!refresh) throw new Error(`Thieu GitHub Secret "${ch.tokenLabel}" cho kenh ${code}`);
+  }
+  const at = await ytAccessToken(refresh);
+  const mine = await getMyChannel(at);
+  if (expectId && mine.id !== expectId)
+    throw new Error(`SAI KENH! Token "${label}" thuoc "${mine.title}" (${mine.id}) nhung bang khai bao ${code}=${expectId}. Da CHAN dang.`);
+  console.log(`  [kenh] ${code || "(mac dinh)"} -> "${mine.title}" ${mine.handle || ""} [OK]`);
+  _tokCache.set(key, at);
+  return at;
+}
+// ============================================
 
 async function setSyntheticFlag(accessToken, videoId, value) {
   const g = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status&id=${videoId}`,
@@ -323,7 +384,6 @@ async function main() {
   }
   if (!pending.length) return;
 
-  const accessToken = DRY ? null : await ytAccessToken();
 
   if (THUMB_ONLY) {
     for (const row of pending) {
@@ -334,6 +394,7 @@ async function main() {
       if (!thAtt)   { console.log("  [bo qua] cot Thumbnail trong"); continue; }
       const tmpTh = path.join(os.tmpdir(), `th-${row.record_id}-${thAtt.name}`.replace(/[^\w.\-]/g, "_"));
       try {
+        const accessToken = await tokenForChannel(txt(f["Kênh"] ?? f["Kenh"]));
         await downloadAttachment(thAtt, row.record_id, "Thumbnail", tmpTh);
         await setThumbnail(accessToken, videoId, tmpTh);
         console.log(`  [OK] da dat anh bia cho ${videoId}: ${thAtt.name}`);
@@ -376,6 +437,7 @@ async function main() {
     const tmp = path.join(os.tmpdir(), `yt-${row.record_id}-${att.name}`.replace(/[^\w.\-]/g, "_"));
     try {
       await updateRow(row.record_id, { "Trạng thái": "Đang đăng" });
+      const accessToken = await tokenForChannel(txt(f["Kênh"] ?? f["Kenh"]));
       const size = await downloadAttachment(att, row.record_id, "Video", tmp);
 
       const desc = (f["Mô tả"]?.text ?? f["Mô tả"] ?? "").toString();
