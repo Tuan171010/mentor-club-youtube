@@ -245,7 +245,7 @@ async function loadChannels() {
   if (!CFG.tableChannels) return _channels;
   const j = await larkApi("GET",
     `/open-apis/bitable/v1/apps/${CFG.appToken}/tables/${CFG.tableChannels}/records?page_size=200`);
-  for (const it of j?.data?.items || []) {
+  for (const it of j?.items || []) {
     const f = it.fields || {};
     const code = txt(f["Ma kenh"] ?? f["Mã kênh"]);
     if (!code) continue;
