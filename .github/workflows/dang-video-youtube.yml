@@ -13,6 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       record_id: { description: "record_id 1 dòng (bỏ trống = quét Chờ đăng)", required: false }
+      thumb_only: { description: "1 = chỉ đặt ảnh bìa cho video đã đăng (không upload lại)", required: false }
 
 jobs:
   run:
@@ -40,4 +41,5 @@ jobs:
           LEAD_HOURS: ${{ github.event_name == 'schedule' && (vars.LEAD_HOURS || '2.5') || '' }}
           # ---- Nút bấm Lark gửi kèm record_id ----
           RECORD_ID: ${{ github.event.client_payload.record_id || inputs.record_id }}
+          THUMB_ONLY: ${{ github.event.client_payload.thumb_only || inputs.thumb_only }}
         run: node ".claude/skills/hmh-AIOS-dang-video-youtube/scripts/post-video-youtube.mjs"
