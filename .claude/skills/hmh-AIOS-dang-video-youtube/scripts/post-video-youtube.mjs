@@ -33,6 +33,7 @@ const LIMIT = (() => { const i = process.argv.indexOf("--limit"); return i > -1 
 const DRY = process.argv.includes("--dry-run");
 // record_id cụ thể (nút bấm Lark gửi qua client_payload) — CLI --record-id hoặc env RECORD_ID
 const RECORD_ID = (() => { const i = process.argv.indexOf("--record-id"); return i > -1 ? process.argv[i + 1] : (E.RECORD_ID || ""); })();
+const THUMB_ONLY = /^(1|true|yes)$/i.test(E.THUMB_ONLY || "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- Lark ----------
@@ -262,6 +263,29 @@ async function main() {
   if (!pending.length) return;
 
   const accessToken = DRY ? null : await ytAccessToken();
+
+  if (THUMB_ONLY) {
+    for (const row of pending) {
+      const f = row.fields;
+      const videoId = (f["Video ID"]?.text ?? f["Video ID"] ?? "").toString().trim();
+      const thAtt = Array.isArray(f["Thumbnail"]) && f["Thumbnail"].length ? f["Thumbnail"][0] : null;
+      if (!videoId) { console.log("  [bo qua] dong chua co Video ID"); continue; }
+      if (!thAtt)   { console.log("  [bo qua] cot Thumbnail trong"); continue; }
+      const tmpTh = path.join(os.tmpdir(), `th-${row.record_id}-${thAtt.name}`.replace(/[^\w.\-]/g, "_"));
+      try {
+        await downloadAttachment(thAtt, row.record_id, "Thumbnail", tmpTh);
+        await setThumbnail(accessToken, videoId, tmpTh);
+        console.log(`  [OK] da dat anh bia cho ${videoId}: ${thAtt.name}`);
+        await updateRow(row.record_id, { "Ghi chú lỗi": "" });
+      } catch (e) {
+        const note = `Thumbnail chua dat duoc: ${e.message}`.slice(0, 500);
+        console.log(`  [LOI] ${note}`);
+        try { await updateRow(row.record_id, { "Ghi chú lỗi": note }); } catch {}
+      } finally { try { fs.existsSync(tmpTh) && fs.unlinkSync(tmpTh); } catch {} }
+    }
+    console.log("\nHoan tat (chi dat anh bia).");
+    return;
+  }
 
   for (const row of pending) {
     const f = row.fields;
