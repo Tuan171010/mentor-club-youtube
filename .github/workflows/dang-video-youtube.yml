@@ -34,6 +34,9 @@ jobs:
           LARK_DOMAIN: ${{ github.event.client_payload.domain || vars.LARK_DOMAIN }}
           LARK_BASE_ID: ${{ github.event.client_payload.base_id || vars.LARK_BASE_ID }}
           TABLE_POST:  ${{ github.event.client_payload.table_post || vars.TABLE_POST }}
+          # ---- DA KENH: bang so dang ky kenh + toan bo secrets (script tu chon dung token) ----
+          TABLE_CHANNELS: ${{ github.event.client_payload.table_channels || vars.TABLE_CHANNELS }}
+          ALL_SECRETS: ${{ toJSON(secrets) }}
           YT_OAUTH_CLIENT_ID: ${{ vars.YT_OAUTH_CLIENT_ID }}
           YT_CATEGORY_ID: ${{ vars.YT_CATEGORY_ID }}
           YT_PRIVACY: ${{ vars.YT_PRIVACY }}
