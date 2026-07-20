@@ -198,6 +198,42 @@ async function uploadToYouTube(accessToken, filePath, fileSize, snippet, status)
 // ---------- MAIN ----------
 // Đặt ảnh bìa (thumbnail) cho video đã upload.
 // LƯU Ý: kênh phải ĐÃ XÁC MINH (số điện thoại) thì YouTube mới cho đặt thumbnail tuỳ chỉnh.
+// Tach tag thong minh: uu tien dau phay; neu khong co phay thi tach theo khoang trang/xuong dong
+// (ho tro kieu "#Tag1 #Tag2"). Bo dau #, loai tag > 100 ky tu, cat tong <= 480 ky tu (YouTube gioi han 500).
+function parseTags(raw) {
+  const s = (raw ?? "").toString().trim();
+  if (!s) return [];
+  let parts = s.includes(",") ? s.split(",") : s.split(/[\n\r\s]+/);
+  parts = parts.map((x) => x.trim().replace(/^#+/, "")).filter(Boolean);
+  const dropped = parts.filter((x) => x.length > 100);
+  if (dropped.length) console.log(`  [canh bao] bo ${dropped.length} tag dai qua 100 ky tu`);
+  parts = parts.filter((x) => x.length <= 100);
+  const out = []; let total = 0;
+  for (const t of parts) {
+    const cost = (t.includes(" ") ? t.length + 2 : t.length) + 1;
+    if (total + cost > 480) { console.log(`  [canh bao] cat bot tag cho vua 500 ky tu`); break; }
+    out.push(t); total += cost;
+  }
+  return out;
+}
+
+async function getVideoSnippet(accessToken, videoId) {
+  const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) throw new Error(`videos.list ${r.status}`);
+  return (await r.json()).items?.[0]?.snippet || null;
+}
+
+async function updateVideoSnippet(accessToken, videoId, snippet) {
+  const r = await fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ id: videoId, snippet }),
+  });
+  if (!r.ok) throw new Error(`videos.update(snippet) ${r.status}: ${(await r.text()).slice(0, 250)}`);
+  return true;
+}
+
 async function setSyntheticFlag(accessToken, videoId, value) {
   const g = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=status&id=${videoId}`,
     { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -305,6 +341,20 @@ async function main() {
           await setSyntheticFlag(accessToken, videoId, true);
           console.log(`  [OK] da tick "AI use = Yes" cho ${videoId}`);
         }
+        const cur = await getVideoSnippet(accessToken, videoId);
+        console.log(`  [kiem tra] tag hien co tren YouTube: ${(cur?.tags || []).length}`);
+        const wantTags = parseTags(f["Tags"]?.text ?? f["Tags"]);
+        if (wantTags.length) {
+          await updateVideoSnippet(accessToken, videoId, {
+            title: cur?.title || (f["Tiêu đề"]?.text ?? f["Tiêu đề"] ?? "Untitled").toString(),
+            description: cur?.description ?? "",
+            categoryId: cur?.categoryId || CFG.defaultCategoryId || "22",
+            tags: wantTags,
+            defaultLanguage: cur?.defaultLanguage,
+            defaultAudioLanguage: cur?.defaultAudioLanguage,
+          });
+          console.log(`  [OK] da ghi ${wantTags.length} tag: ${wantTags.slice(0, 5).join(" | ")}`);
+        }
         await updateRow(row.record_id, { "Ghi chú lỗi": "" });
       } catch (e) {
         const note = `Thumbnail chua dat duoc: ${e.message}`.slice(0, 500);
@@ -329,8 +379,8 @@ async function main() {
       const size = await downloadAttachment(att, row.record_id, "Video", tmp);
 
       const desc = (f["Mô tả"]?.text ?? f["Mô tả"] ?? "").toString();
-      const tagsRaw = (f["Tags"]?.text ?? f["Tags"] ?? "").toString();
-      const tags = tagsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+      const tags = parseTags(f["Tags"]?.text ?? f["Tags"]);
+      console.log(`  [tags] ${tags.length} tag: ${tags.slice(0, 5).join(" | ")}${tags.length > 5 ? " ..." : ""}`);
       const privacy = (f["Chế độ"]?.text ?? f["Chế độ"] ?? (CFG.defaultPrivacy || "private")).toString();
       const snippet = { title, description: desc, tags, categoryId: CFG.defaultCategoryId || "22" };
       const status = { privacyStatus: privacy, selfDeclaredMadeForKids: false };
