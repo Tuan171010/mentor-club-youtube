@@ -37,6 +37,7 @@ jobs:
           YT_OAUTH_CLIENT_ID: ${{ vars.YT_OAUTH_CLIENT_ID }}
           YT_CATEGORY_ID: ${{ vars.YT_CATEGORY_ID }}
           YT_PRIVACY: ${{ vars.YT_PRIVACY }}
+          YT_SYNTHETIC: ${{ vars.YT_SYNTHETIC }}
           # ---- CANH GIỜ: chỉ bật khi chạy theo lịch (cron). Chạy tay/nút bấm vẫn đăng ngay ----
           LEAD_HOURS: ${{ github.event_name == 'schedule' && (vars.LEAD_HOURS || '2.5') || '' }}
           # ---- Nút bấm Lark gửi kèm record_id ----
