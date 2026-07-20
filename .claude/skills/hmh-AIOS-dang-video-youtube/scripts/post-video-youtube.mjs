@@ -214,14 +214,34 @@ async function main() {
     pending = rows.filter((r) => r.record_id === RECORD_ID && Array.isArray(r.fields["Video"]) && r.fields["Video"].length > 0);
     console.log(`record_id=${RECORD_ID}: ${pending.length ? "sẽ đăng" : "không thấy dòng hợp lệ (thiếu Video?)"}.`);
   } else {
+    // LEAD_HOURS: nếu đặt (vd 2.5) -> CANH GIỜ, chỉ upload dòng có "Lịch đăng" còn <= LEAD_HOURS.
+    // Bỏ trống/0 -> giữ hành vi cũ (upload mọi dòng "Chờ đăng" ngay).
+    const LEAD_H = parseFloat(E.LEAD_HOURS || "") || 0;
+    const nowMs = Date.now();
+    const fmt = (ms) => new Date(ms).toLocaleString("vi-VN");
     pending = rows.filter((r) => {
       const st = r.fields["Trạng thái"];
       const stName = typeof st === "object" ? st?.text : st;
       const vid = r.fields["Video"];
-      return (stName === "Chờ đăng") && Array.isArray(vid) && vid.length > 0;
+      if (!(stName === "Chờ đăng") || !Array.isArray(vid) || vid.length === 0) return false;
+      if (!LEAD_H) return true;
+      const ttl = (r.fields["Tiêu đề"]?.text ?? r.fields["Tiêu đề"] ?? "(không tên)").toString().slice(0, 40);
+      const sched = r.fields["Lịch đăng"];
+      if (!sched) { console.log(`  ⏭  "${ttl}": chưa có "Lịch đăng" -> bỏ qua (chế độ canh giờ).`); return false; }
+      const leftH = (sched - nowMs) / 3600000;
+      if (leftH <= 0) {
+        console.log(`  ⛔ "${ttl}": "Lịch đăng" ${fmt(sched)} ĐÃ QUÁ GIỜ (${leftH.toFixed(1)}h) -> KHÔNG đăng. Hãy dời lịch.`);
+        return false;
+      }
+      if (leftH > LEAD_H) {
+        console.log(`  ⏳ "${ttl}": còn ${leftH.toFixed(1)}h tới giờ công khai -> chưa tới lượt (chỉ upload khi <= ${LEAD_H}h).`);
+        return false;
+      }
+      console.log(`  ✅ "${ttl}": còn ${leftH.toFixed(1)}h -> UPLOAD NGAY (sớm hơn giờ công khai ${leftH.toFixed(1)}h).`);
+      return true;
     });
     if (LIMIT) pending = pending.slice(0, LIMIT);
-    console.log(`Có ${pending.length} video "Chờ đăng"${LIMIT ? ` (giới hạn ${LIMIT})` : ""}.`);
+    console.log(`Có ${pending.length} video sẽ đăng lần này${LEAD_H ? ` (canh giờ: LEAD_HOURS=${LEAD_H}h)` : ""}${LIMIT ? ` (giới hạn ${LIMIT})` : ""}.`);
   }
   if (!pending.length) return;
 
