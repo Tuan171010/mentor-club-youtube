@@ -452,6 +452,13 @@ async function main() {
       const status = { privacyStatus: privacy, selfDeclaredMadeForKids: false };
       if (SYNTHETIC) status.containsSyntheticMedia = true;
       const schedMs = f["Lịch đăng"];
+      // CHOT AN TOAN TUYET DOI: "Lich dang" da qua gio -> TU CHOI dang.
+      // Neu van dang, YouTube se bo qua publishAt va CONG KHAI NGAY LAP TUC -> hong kenh.
+      // Ap dung cho MOI kieu chay, ke ca bam tay theo record_id.
+      if (schedMs && schedMs <= Date.now()) {
+        const t = new Date(schedMs).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+        throw new Error(`TU CHOI DANG: "Lich dang" (${t}) DA QUA GIO. Neu dang se cong khai NGAY LAP TUC thay vi dung lich. Hay doi "Lich dang" sang tuong lai roi dat lai "Cho dang".`);
+      }
       if (schedMs) { status.privacyStatus = "private"; status.publishAt = new Date(schedMs).toISOString(); }
 
       console.log("  ↑ đang upload lên YouTube...");
