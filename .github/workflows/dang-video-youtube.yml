@@ -43,7 +43,7 @@ jobs:
           YT_SYNTHETIC: ${{ vars.YT_SYNTHETIC }}
           LIMIT: ${{ vars.LIMIT }}
           # ---- CANH GIỜ: chỉ bật khi chạy theo lịch (cron). Chạy tay/nút bấm vẫn đăng ngay ----
-          LEAD_HOURS: ${{ github.event_name == 'schedule' && (vars.LEAD_HOURS || '2.5') || '' }}
+          LEAD_HOURS: ${{ vars.LEAD_HOURS }}   # ap dung cho MOI lan quet hang cho (cron, Lark, chay tay). Co record_id -> bo qua.
           # ---- Nút bấm Lark gửi kèm record_id ----
           RECORD_ID: ${{ github.event.client_payload.record_id || inputs.record_id }}
           THUMB_ONLY: ${{ github.event.client_payload.thumb_only || inputs.thumb_only }}
