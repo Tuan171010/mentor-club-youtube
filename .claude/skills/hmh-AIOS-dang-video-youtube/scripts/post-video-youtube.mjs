@@ -30,7 +30,7 @@ CFG.oauthRefreshToken = E.YT_OAUTH_REFRESH_TOKEN  || CFG.oauthRefreshToken;
 CFG.defaultCategoryId = E.YT_CATEGORY_ID          || CFG.defaultCategoryId || "22";
 CFG.defaultPrivacy    = E.YT_PRIVACY              || CFG.defaultPrivacy || "private";
 
-const LIMIT = (() => { const i = process.argv.indexOf("--limit"); return i > -1 ? parseInt(process.argv[i + 1], 10) : 0; })();
+const LIMIT = (() => { const i = process.argv.indexOf("--limit"); return i > -1 ? parseInt(process.argv[i + 1], 10) : (parseInt(E.LIMIT || "", 10) || 0); })();
 const DRY = process.argv.includes("--dry-run");
 // record_id cụ thể (nút bấm Lark gửi qua client_payload) — CLI --record-id hoặc env RECORD_ID
 const RECORD_ID = (() => { const i = process.argv.indexOf("--record-id"); return i > -1 ? process.argv[i + 1] : (E.RECORD_ID || ""); })();
@@ -484,7 +484,19 @@ async function main() {
       console.log(`  ✔ Đã đăng: ${link}`);
     } catch (e) {
       console.log(`  ✗ Lỗi: ${e.message}`);
-      try { await updateRow(row.record_id, { "Trạng thái": "Lỗi", "Ghi chú lỗi": e.message.slice(0, 900) }); } catch {}
+      // Het quota YouTube -> KHONG danh dau "Loi" (se ket vinh vien), ma giu "Cho dang"
+      // de lan chay hom sau tu dang tiep. Va dung luon vong lap vi quota da het.
+      const isQuota = /quotaExceeded|dailyLimitExceeded|rateLimitExceeded|userRateLimitExceeded/i.test(e.message);
+      try {
+        await updateRow(row.record_id, {
+          "Trạng thái": isQuota ? "Chờ đăng" : "Lỗi",
+          "Ghi chú lỗi": (isQuota ? "[HET QUOTA - se tu dang lai hom sau] " : "") + e.message.slice(0, 850),
+        });
+      } catch {}
+      if (isQuota) {
+        console.log("  [QUOTA] Het quota YouTube hom nay -> giu 'Cho dang', dung lai. Hom sau tu chay tiep.");
+        break;
+      }
     } finally {
       try { fs.existsSync(tmp) && fs.unlinkSync(tmp); } catch {}
     }
