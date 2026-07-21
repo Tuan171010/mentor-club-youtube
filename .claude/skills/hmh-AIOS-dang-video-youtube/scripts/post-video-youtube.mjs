@@ -275,6 +275,10 @@ async function tokenForChannel(code) {
   const key = code || "__default__";
   if (_tokCache.has(key)) return _tokCache.get(key);
   let refresh = CFG.oauthRefreshToken, expectId = "", label = "(mac dinh)";
+  // CHOT AN TOAN: da cau hinh da kenh ma dong khong chon "Kenh" -> TU CHOI, tranh dang nham kenh mac dinh.
+  if (!code && CFG.tableChannels) {
+    throw new Error('Chua chon cot "Kenh" cho dong nay -> TU CHOI dang de tranh dang nham kenh. Hay chon Kenh roi dat lai Trang thai = "Cho dang".');
+  }
   if (code) {
     const ch = (await loadChannels()).get(code);
     if (!ch) throw new Error(`Kenh "${code}" chua khai bao trong bang Kenh (TABLE_CHANNELS)`);
